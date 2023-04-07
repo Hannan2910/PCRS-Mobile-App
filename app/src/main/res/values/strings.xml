@@ -1,0 +1,40 @@
+<resources>
+    <string name="app_name">PCRS</string>
+    <string name="started_title">Welcome to PCRS</string>
+    <string name="illustration_img">Illustration_Image</string>
+    <string name="btn_register">REGISTER</string>
+    <string name="btn_login">LOGIN</string>
+    <string name="login_title">Login to App</string>
+    <string name="login_sub_title">
+        <font color="#5782BB"><b>Login</b></font> if you already have an account.
+    </string>
+    <string name="login_email">Your email or username</string>
+    <string name="login_password">Your password</string>
+    <string name="login_forgot_pw">Forgot Password?</string>
+    <string name="login_havent_account">
+    Don\'t have an account? <font color="#5782BB"><b>Register</b></font>
+    </string>
+    <string name="register_title">Create An Account</string>
+    <string name="register_sub_title">
+        <font color="#5782BB"><b>Register</b></font> to get started with the app.
+    </string>
+    <string name="register_fullname">Your full name</string>
+    <string name="register_email">Your email</string>
+    <string name="register_username">Your username</string>
+    <string name="register_password">Your password</string>
+    <string name="register_confirm_password">Confirm Password</string>
+    <string name="register_have_account">
+    Already have an account? <font color="#00C9B8"><b>Login</b></font>
+    </string>
+    <string name="home_title">PCRS is running</string>
+    <string name="home_sub_title">The app is monitoring your device</string>
+    <string name="btn_logout">LOGOUT</string>
+    <string name="cnic_title">Relationship verification</string>
+    <string name="cnic_sub_title"><b>Upload child B-Form or Birth Certificate</b></string>
+    <string name="btn_verify">VERIFY</string>
+    <string name="cnic_upload">UPLOAD</string>
+    <string name="btn_sos">SOS</string>
+    <string name="accessibility_service_description">This service provides parental controls by monitoring which apps are used and blocking certain apps as needed.</string>
+    <string name="started_sub_title">We\'re here to help you monitor and control your child\'s smartphone usage with features like usage limits, content filtering, and activity recommendations.</string>
+    <string name="close">close</string>
+</resources>
