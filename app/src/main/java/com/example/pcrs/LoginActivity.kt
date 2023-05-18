@@ -1,6 +1,7 @@
 package com.example.pcrs
 
 import android.app.AppOpsManager
+import android.content.ContentValues
 import android.content.ContentValues.TAG
 import android.content.Context
 import android.content.Intent
@@ -11,42 +12,54 @@ import android.util.Log
 import android.view.accessibility.AccessibilityManager
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.android.volley.Request
-import com.android.volley.toolbox.JsonObjectRequest
-import com.android.volley.toolbox.Volley
 import com.example.pcrs.databinding.ActivityLoginBinding
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.Body
+import retrofit2.http.Headers
+import retrofit2.http.POST
+import java.util.concurrent.TimeUnit
 
+data class LoginResponse(
+    val token: String
+)
+interface ApiService {
+    @Headers("Content-Type: application/json")
+    @POST("api/children/login")
+    fun login(@Body body: RequestBody): Call<LoginResponse>
+    //fun login(@Body body: RequestBody): Call<String>
+}
 
 class LoginActivity : AppCompatActivity() {
     private lateinit var binding: ActivityLoginBinding
+    private lateinit var retrofit: Retrofit
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding=ActivityLoginBinding.inflate(layoutInflater)
+        binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
-       binding.btnLogin.setOnClickListener {
-            val userName=binding.etEmail.text.toString()
-            val passWord=binding.etPassword.text.toString()
-            if (userName.isEmpty() || passWord.isEmpty()) {
-                Toast.makeText(this, "Username or password is empty", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-           Toast.makeText(this, "Login Successful", Toast.LENGTH_SHORT).show()
-            val sharedPreferences = getSharedPreferences("UserName", Context.MODE_PRIVATE)
-            val editor = sharedPreferences.edit()
-            editor.putString("username", userName)
-            editor.apply()
-            Log.d(
-                TAG,
-                "name: $userName, password: $passWord"
-            )
-            checkPermissions()
-            //startActivity(Intent(this,PermissionActivity::class.java))
-        }
 
+        val httpClient = OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
 
+        retrofit = Retrofit.Builder()
+            .baseUrl("https://pcrslive.me/")
+            .client(httpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
 
-      /*  binding.btnLogin.setOnClickListener {
+        binding.btnLogin.setOnClickListener {
             val userName = binding.etEmail.text.toString()
             val passWord = binding.etPassword.text.toString()
 
@@ -54,66 +67,85 @@ class LoginActivity : AppCompatActivity() {
                 Toast.makeText(this, "Username or password is empty", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-
             Toast.makeText(this, "Please Wait", Toast.LENGTH_SHORT).show()
-
-            val queue = Volley.newRequestQueue(this)
-            val url = "http://your.server.com/login.php"
-
-            val params = HashMap<String, String>()
-            params["username"] = userName
-            params["password"] = passWord
-
-            val jsonRequest = JSONObject(params as Map<*, *>)
-            val jsonObjectRequest = JsonObjectRequest(
-                Request.Method.POST, url, jsonRequest,
-                { response ->
-                    val success = response.getBoolean("success")
-                    if (success) {
-                        // Login successful
-                        val userData = response.getJSONObject("data")
-                        val authToken = userData.getString("token")
-
-                        // Save the authToken to shared preferences
-                        val sharedPreferences = getSharedPreferences("UserData", MODE_PRIVATE)
-                        val editor = sharedPreferences.edit()
-                        editor.putString("authToken", "Bearer $authToken")
-                        editor.apply()
-
-                        Toast.makeText(this, "Login Successful", Toast.LENGTH_SHORT).show()
+            val apiService = retrofit.create(ApiService::class.java)
+            val loginBody = """
+            {
+                "email": "$userName",
+                "password": "$passWord"
+            }
+            """.trimIndent().toRequestBody("application/json".toMediaType())
+            val call = apiService.login(loginBody)
+            call.enqueue(object : Callback<LoginResponse> {
+                override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
+                    if (response.isSuccessful) {
+                        val loginResponse = response.body()
+                        val token = loginResponse?.token
+                        saveAuthToken(token)
                         checkPermissions()
-                      //  startService(Intent(this, PackageService::class.java))
-                        //startActivity(Intent(this, PermissionActivity::class.java))
+                       // Log.d(ContentValues.TAG, "Token: $token")
                     } else {
-                        // Login failed
-                        val error = response.getString("error")
-                        Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
+                        val errorBody = response.errorBody()?.string()
+                        if (errorBody != null) {
+                            geter()
+                            Log.d("response",errorBody)
+                        }
+                        if (errorBody != null) {
+                          /*  val jsonObject = JSONObject(errorBody)
+                            val error = jsonObject.getString("error")
+                            val status = jsonObject.getInt("status")
+                            Log.d("Response", "Error: $error, Status: $status")*/
+                        }
+
                     }
-                },
-                { error ->
-                    // Volley error occurred
-                    Log.e(TAG, "Volley error: ${error.message}")
-                    Toast.makeText(this, "Volley error occurred", Toast.LENGTH_SHORT).show()
                 }
-            )
 
-            queue.add(jsonObjectRequest)
+                override fun onFailure(call: Call<LoginResponse>, t: Throwable) {
+                    neter()
+                    Log.e(ContentValues.TAG, "Error sending app data: $t")
 
-        }*/
+
+                }
+            })
+        }
 
         binding.forgotPw.setOnClickListener {
-            val url = "https://pcrs.vercel.app/"
+            val url = "https://pcrslive.me/"
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
             startActivity(intent)
         }
         binding.tvHaventAccount.setOnClickListener {
-            val url = "https://pcrs.vercel.app/"
+            val url = "https://pcrslive.me/"
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
             startActivity(intent)
         }
+    }
+    fun geter(){
+        Toast.makeText(this, "Incorrect Email or Password", Toast.LENGTH_SHORT).show()
+    }
+    fun neter(){
+        Toast.makeText(this, "Incorrect Email or Password", Toast.LENGTH_SHORT).show()
 
     }
+    private fun saveAuthToken(token: String?) {
+        val sharedPreferences = getSharedPreferences("AuthPrefs", Context.MODE_PRIVATE)
+        val editor = sharedPreferences.edit()
+
+        // Clear the previous token
+        editor.remove("AuthToken")
+
+        // Save the new token if it is not null or empty
+        if (!token.isNullOrEmpty()) {
+            editor.putString("AuthToken", token)
+            Log.d(ContentValues.TAG, "Token saved: $token")
+        } else {
+            Log.d(ContentValues.TAG, "Token is null or empty")
+        }
+
+        editor.apply()
+    }
     fun checkPermissions(){
+        Toast.makeText(this, "Login Successful", Toast.LENGTH_SHORT).show()
         val appOps = this.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
         val uid = android.os.Process.myUid()
         val accessibilityManager = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
@@ -137,4 +169,5 @@ class LoginActivity : AppCompatActivity() {
             startActivity(Intent(this, HomeActivity::class.java))
         }
     }
+    // ... rest of your code
 }

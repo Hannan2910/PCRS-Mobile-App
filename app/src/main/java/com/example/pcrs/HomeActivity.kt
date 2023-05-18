@@ -20,7 +20,7 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var binding: ActivityHomeBinding
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        val PERMISSION_REQUEST_LOCATION = 123
         binding=ActivityHomeBinding.inflate(layoutInflater)
         setContentView(binding.root)
 //       val appOps = this.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
@@ -33,12 +33,25 @@ class HomeActivity : AppCompatActivity() {
 //            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
 //            this.startActivity(intent)
 //        }
+
         val accessibilityManager = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
-        if (!accessibilityManager.isEnabled) {
+
             val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
             startActivity(intent)
-        }
 
+       /* if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED
+        ) {
+            // Request location permissions
+            ActivityCompat.requestPermissions(
+                this, arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                ),
+                PERMISSION_REQUEST_LOCATION
+            )
+            return
+        }*/
 
 //        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 //            val name = "AppList"
@@ -57,4 +70,6 @@ class HomeActivity : AppCompatActivity() {
 
         }
     }
+
+
 }

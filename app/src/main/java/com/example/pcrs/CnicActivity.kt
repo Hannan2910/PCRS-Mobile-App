@@ -33,7 +33,7 @@ class CnicActivity : AppCompatActivity() {
         }
         binding.btnContinue.setOnClickListener {
 
-            //startService(Intent(this, PackageService::class.java))
+            startService(Intent(this, PackageService::class.java))
             startActivity(Intent(this,HomeActivity::class.java))
         }
 

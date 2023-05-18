@@ -70,7 +70,8 @@ class MyAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         // Check if the event type is a window state change event
 
-        if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+        if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
+            event?.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
             // Get the package name of the app that is currently in the foreground
             val packageName = event.packageName?.toString()
 
@@ -79,29 +80,44 @@ class MyAccessibilityService : AccessibilityService() {
 
             val usageTime =    getAppUsageTime(packageName,System.currentTimeMillis())
             val appList = mutableListOf<AppData>()
-            val jsonString = "[{\"packageName\":\"com.kiloo.subwaysurf\",\"allowedTime\":0}]"
-            val jsonArray = JSONArray(jsonString)
-            for (i in 0 until jsonArray.length()) {
-                val jsonObject = jsonArray.getJSONObject(i)
-                val task = AppData(jsonObject)
-                appList.add(task)
-            }
+             val sharedPrefs = getSharedPreferences("blocked", Context.MODE_PRIVATE)
+            //val editor = sharedPrefs.edit()
+            //editor.remove("jsonString")
+            //editor.putString("jsonString","[{\"packageName\":\"com.kiloo.subwaysurf\",\"allowedTime\":0}]")
+            //editor.apply() // Add this line to save the changes
 
-            Log.d("MyAccessibilityService", "Package name: $packageName, Usage time: ${(usageTime/1000).toInt()}")
+            val jsonString = sharedPrefs.getString("jsonString", "") ?: ""
+           /* Log.d(
+                "MyAccessibilityService",
+                jsonString
+            )*/
+            //val jsonString = "[{\"packageName\":\"com.backflipstudios.transformersearthwars\",\"allowedTime\":0}]"
+            if(!jsonString.isEmpty()) {
+                val jsonArray = JSONArray(jsonString)
+                for (i in 0 until jsonArray.length()) {
+                    val jsonObject = jsonArray.getJSONObject(i)
+                    val task = AppData(jsonObject)
+                    appList.add(task)
+                }
 
-            for (app in appList) {
-                if (packageName == app.packageName) {
+                Log.d(
+                    "MyAccessibilityService",
+                    "Package name: $packageName, Usage time: ${(usageTime / 1000).toInt()}"
+                )
 
-                    if ((usageTime / 1000).toInt() >= app.allowedTime) {
-                        val intent = Intent(this, BlockingActivity::class.java)
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        intent.addFlags(Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
-                        startActivity(intent)
-                        break // Stop iterating through the list once you find a match
+                for (app in appList) {
+                    if (packageName == app.packageName) {
+
+                        if ((usageTime / 60000).toInt() <= app.allowedTime) {
+                            val intent = Intent(this, BlockingActivity::class.java)
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            intent.addFlags(Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
+                            startActivity(intent)
+                            break // Stop iterating through the list once you find a match
+                        }
                     }
                 }
             }
-
         }
     }
     private fun getAppUsageTime(packageName: String?, currentTime: Long): Long {

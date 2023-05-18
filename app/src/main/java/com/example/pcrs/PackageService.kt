@@ -8,66 +8,115 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.IBinder
 import android.provider.Settings
 import android.util.Log
-import com.android.volley.Request
-import com.android.volley.toolbox.JsonObjectRequest
-import com.android.volley.toolbox.Volley
-import org.json.JSONArray
+import com.google.gson.Gson
+import okhttp3.OkHttpClient
 import org.json.JSONObject
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import org.json.JSONArray
 import java.util.*
+import retrofit2.http.Body
+import retrofit2.http.Header
+import retrofit2.http.Headers
+import retrofit2.http.POST
+
 
 class PackageService : Service() {
+    data class AppData(
+        val apps: List<String>
+    )
+
+    interface ApiService {
+        @Headers("Content-Type: application/json")
+        @POST("api/apps")
+        fun sendAppData(
+            @Body requestBody: AppData
+        ): Call<Unit>
+    }
+
+
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val jsonArray = getInstalledApps(applicationContext)
-        val sharedPreferences = getSharedPreferences("UserName", Context.MODE_PRIVATE)
-        val username = sharedPreferences.getString("username", "")
-        // Create JSON object to hold request body
+        val appsinlist = getInstalledApps(applicationContext)
+        val appData = AppData(appsinlist)
+
+        Log.d(ContentValues.TAG, "app list: $appsinlist")
+       // val jsonArray = JSONArray(appsinlist)
+
+        ////val jsonObject = JSONObject()
+       // jsonObject.put("apps", jsonArray)
+
         val jsonObject = JSONObject()
-        jsonObject.put("username", username)
-        jsonObject.put("apps", jsonArray)
-
-        // Create request object
-        val queue = Volley.newRequestQueue(this)
-        val url = "https://catfact.ninja/fact"
-        val request = JsonObjectRequest(
-            Request.Method.POST, url, jsonObject,
-            { response ->
-                Log.d(ContentValues.TAG, "Server response: $response")
-
-            },
-            { error ->
-                Log.e(ContentValues.TAG, "Error sending app data: $error")
-                // Handle error response
-            })
-
-        // Add request to queue
-        queue.add(request)
+        jsonObject.put("apps", appsinlist.toString())
+        Log.d(ContentValues.TAG, "app json: $jsonObject")
 
 
+        val sharedPreferences = getSharedPreferences("AuthPrefs", Context.MODE_PRIVATE)
+        val authToken = sharedPreferences.getString("AuthToken", "") ?: ""
+        Log.d(ContentValues.TAG, "Auth token: $authToken")
+        // Replace with your actual authorization token
 
+        val okHttpClient = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                val request = chain.request().newBuilder()
+                    .addHeader("Authorization", "Bearer $authToken")
+                    .build()
+                chain.proceed(request)
+            }
+            .build()
 
+        val retrofit = Retrofit.Builder()
+            .baseUrl("https://pcrslive.me/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create(Gson()))
+            .build()
+
+        val apiService = retrofit.create(ApiService::class.java)
+
+        val call = apiService.sendAppData(appData)
+        call.enqueue(object : Callback<Unit> {
+            override fun onResponse(call: Call<Unit>, response: Response<Unit>) {
+                if (response.isSuccessful) {
+                    Log.d(ContentValues.TAG, "Server response: ${response.code()}")
+                    stopSelf()
+                } else {
+                    Log.e(ContentValues.TAG, "Error response: ${response.code()}")
+                    val errorBody = response.errorBody()?.string()
+                    if (errorBody != null) {
+                        Log.d("response",errorBody)
+                    }
+
+                }
+            }
+
+            override fun onFailure(call: Call<Unit>, t: Throwable) {
+                Log.e(ContentValues.TAG, "Failed to send app data", t)
+            }
+        })
 
         return START_STICKY
     }
 
 
 
-
     data class AppInfo(
 
         val packageName: String,
-        val usageTime: Long
+        val usageTime: Int
 
     )
-    private fun getInstalledApps(context: Context): JSONArray {
+    private fun getInstalledApps(context: Context): MutableList<String> {
         val packageManager = context.packageManager
         val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
         val uid = android.os.Process.myUid()
         val appsList = mutableListOf<AppInfo>()
+        val appslist= mutableListOf<String>()
         // Check if permission is granted
         val mode = appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, uid, context.packageName)
         if (mode != AppOpsManager.MODE_ALLOWED) {
@@ -97,24 +146,28 @@ class PackageService : Service() {
             if (isSystemApp && !isUserApp) {
                 continue // Skip system apps and apps that are not accessible by user
             }
-            val usageTime = getAppUsageTime(packageName,System.currentTimeMillis())
+            val usageTime = (getAppUsageTime(packageName,System.currentTimeMillis())/(1000*60)).toInt()
 
             // Create AppInfo object with usage time
             val app = AppInfo(packageName, usageTime)
             appsList.add(app)
+           appslist.add(packageName)
+
             val jsonObject = JSONObject()
-            jsonObject.put("packageName", packageName)
-          //  jsonObject.put("usageTime", (usageTime/1000).toInt())
+            jsonObject.put("pkg_name", packageName)
+           // jsonObject.put("usage_time", usageTime)
+            //jsonObject.put("Date",1682294400000)
             jsonArray.put(jsonObject)
 
-            Log.d(
-                ContentValues.TAG,
-                "App name: $appName, package name: $packageName, usage time: $usageTime"
-            )
+           // Log.d(
+             //   ContentValues.TAG,
+               // "App name: $appName, package name: $packageName, usage time: $usageTime"
+           // )
         }
 
 
-        return jsonArray
+
+        return appslist
     }
 
     private fun getAppUsageTime(packageName: String, currentTime: Long): Long {

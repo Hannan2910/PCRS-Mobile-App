@@ -11,14 +11,31 @@ import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
 import android.util.Log
-import androidx.core.app.NotificationCompat
+import com.google.gson.Gson
+import okhttp3.OkHttpClient
 import org.json.JSONArray
 import org.json.JSONObject
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.Body
+import retrofit2.http.Headers
+import retrofit2.http.POST
 import java.util.*
 
 class Applister : Service() {
-
-
+    data class AppData(
+        val usageTimes: MutableList<AppInfo>
+    )
+    interface ApiService {
+        @Headers("Content-Type: application/json")
+        @POST("api/usage-time")
+        fun sendAppUsageData(
+            @Body requestBody: AppData
+        ): Call<Unit>
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
 
@@ -30,23 +47,108 @@ class Applister : Service() {
             ContentValues.TAG,
             "$jsonList"
         )
+        val appData = AppData(jsonList)
 
-       val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val pendingIntent = PendingIntent.getService(this, 0, Intent(this, Applister::class.java), 0)
-       // val calendar = Calendar.getInstance()
-        //calendar.timeInMillis = System.currentTimeMillis() + 10000 // Set the time to 10 seconds from now
+        Log.d(ContentValues.TAG, "app list: $jsonList")
+        // val jsonArray = JSONArray(appsinlist)
+
+        ////val jsonObject = JSONObject()
+        // jsonObject.put("apps", jsonArray)
+
+       /* val jsonObject = JSONObject()
+        jsonObject.put("apps", .toString())
+        Log.d(ContentValues.TAG, "app json: $jsonObject")*/
+
+
+        val sharedPreferences = getSharedPreferences("AuthPrefs", Context.MODE_PRIVATE)
+        val authToken = sharedPreferences.getString("AuthToken", "") ?: ""
+        Log.d(ContentValues.TAG, "Auth token: $authToken")
+        // Replace with your actual authorization token
+
+        val okHttpClient = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                val request = chain.request().newBuilder()
+                    .addHeader("Authorization", "Bearer $authToken")
+                    .build()
+                chain.proceed(request)
+            }
+            .build()
+
+        val retrofit = Retrofit.Builder()
+            .baseUrl("https://pcrslive.me/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create(Gson()))
+            .build()
+
+        val apiService = retrofit.create(ApiService::class.java)
+
+        val call = apiService.sendAppUsageData(appData)
+        call.enqueue(object : Callback<Unit> {
+            override fun onResponse(call: Call<Unit>, response: Response<Unit>) {
+                if (response.isSuccessful) {
+                    Log.d(ContentValues.TAG, "Server response33: ${response.code()}")
+                } else {
+                    Log.e(ContentValues.TAG, "Error response: ${response.code()}")
+                    val errorBody = response.errorBody()?.string()
+                    if (errorBody != null) {
+                        Log.d("response",errorBody)
+                    }
+
+                }
+            }
+
+            override fun onFailure(call: Call<Unit>, t: Throwable) {
+                Log.e(ContentValues.TAG, "Failed to send app data", t)
+            }
+        })
+
+
+       // val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        //val pendingIntent = PendingIntent.getService(this, 0, Intent(this, Applister::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        //val calendar = Calendar.getInstance()
+        //calendar.timeInMillis = System.currentTimeMillis() + 86400000 // Set the time to 10 seconds from now
         //alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, 10000, pendingIntent)
+        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val intent = Intent(this, Applister::class.java)
+        val pendingIntent = PendingIntent.getService(
+            this,
+            0,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val calendar = Calendar.getInstance().apply {
+            timeInMillis = System.currentTimeMillis()
+            set(Calendar.HOUR_OF_DAY, 0) // Set the time to 12:00 AM
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+// Check if the current time is after the set alarm time, if so, push the alarm to the next day
+        if(Calendar.getInstance().after(calendar)){
+            calendar.add(Calendar.DATE, 1)
+        }
+
+// Set up the alarm manager to run the service once a day
+        alarmManager.setRepeating(
+            AlarmManager.RTC_WAKEUP,
+            calendar.timeInMillis,
+            AlarmManager.INTERVAL_DAY,
+            pendingIntent
+        )
 
 
         // Set up the alarm manager to run the service once a day
-        val calendar = Calendar.getInstance()
-        calendar.timeInMillis = System.currentTimeMillis()
-        calendar.set(Calendar.HOUR_OF_DAY, 0) // Set the time to 12:00 AM
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
+      /*  val calendar = Calendar.getInstance().apply {
+            timeInMillis = System.currentTimeMillis()
+            set(Calendar.HOUR_OF_DAY, 0) // Set the time to 12:00 AM
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
         alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, AlarmManager.INTERVAL_DAY, pendingIntent)
-
+*/
         // Create the notification channel for Android O and above
 
         return START_STICKY
@@ -59,9 +161,9 @@ class Applister : Service() {
     data class AppInfo(
 
         val packageName: String,
-        val usageTime: Long
+        val usageTime: Int
     )
-    private fun getInstalledApps(context: Context): JSONArray {
+    private fun getInstalledApps(context: Context): MutableList<AppInfo> {
         val packageManager = context.packageManager
         val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
         val uid = android.os.Process.myUid()
@@ -102,21 +204,21 @@ class Applister : Service() {
             val usageTime = usageStats[packageName]?.totalTimeInForeground ?: 0
             //val usageTime=getAppUsageTime(packageName,System.currentTimeMillis())
             // Create AppInfo object with usage time
-            val app = AppInfo( packageName, usageTime)
+            val app = AppInfo( packageName, (usageTime/60000).toInt())
             appsList.add(app)
             val jsonObject = JSONObject()
             jsonObject.put("pkg_name", packageName)
-            jsonObject.put("usage_time", (usageTime/1000).toInt())
+            jsonObject.put("usage_time", (usageTime/60000).toInt())
             jsonArray.put(jsonObject)
 
-            Log.d(
+           /* Log.d(
                 ContentValues.TAG,
                 "App name: $appName, package name: $packageName, usage time: ${(usageTime/1000).toInt()}"
-            )
+            )*/
         }
 
 
-        return jsonArray
+        return appsList
     }
 
     private fun getAppUsageTime(packageName: String, currentTime: Long): Long {
