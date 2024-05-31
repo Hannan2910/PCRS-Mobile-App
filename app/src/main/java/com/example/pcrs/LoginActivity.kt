@@ -110,12 +110,12 @@ class LoginActivity : AppCompatActivity() {
         }
 
         binding.forgotPw.setOnClickListener {
-            val url = "http://api.pcrsyp.info/"
+            val url = "https://api.fypsystem.me/"
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
             startActivity(intent)
         }
         binding.tvHaventAccount.setOnClickListener {
-            val url = "http://api.pcrsyp.info/"
+            val url = "https://api.fypsystem.me/"
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
             startActivity(intent)
         }
