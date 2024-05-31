@@ -60,7 +60,7 @@ class GetBlocked : Service() {
             .build()
 
         val retrofit = Retrofit.Builder()
-            .baseUrl("https://pcrslive.me/")
+            .baseUrl("https://api.fypsystem.me/")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()

@@ -26,7 +26,7 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this,LoginActivity::class.java))
         }
         binding.btnRegister.setOnClickListener{
-            val url = "https://pcrs.vercel.app/"
+            val url = "https://api.fypsystem.me/"
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
             startActivity(intent)
         }

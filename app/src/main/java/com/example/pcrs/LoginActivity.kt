@@ -54,7 +54,7 @@ class LoginActivity : AppCompatActivity() {
             .build()
 
         retrofit = Retrofit.Builder()
-            .baseUrl("https://pcrslive.me/")
+            .baseUrl("https://api.fypsystem.me/")
             .client(httpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -110,12 +110,12 @@ class LoginActivity : AppCompatActivity() {
         }
 
         binding.forgotPw.setOnClickListener {
-            val url = "https://pcrslive.me/"
+            val url = "http://api.pcrsyp.info/"
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
             startActivity(intent)
         }
         binding.tvHaventAccount.setOnClickListener {
-            val url = "https://pcrslive.me/"
+            val url = "http://api.pcrsyp.info/"
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
             startActivity(intent)
         }

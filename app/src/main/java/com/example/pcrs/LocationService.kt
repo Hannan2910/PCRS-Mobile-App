@@ -105,7 +105,7 @@ class LocationService : Service() {
         private const val TAG = "LocationService"
         private const val THREE_HOURS: Long = 3 * 60 * 60 * 1000 // 3 hours in milliseconds
     }
-     val BASE_URL = "https://pcrslive.me/" // Replace with your API base URL
+     val BASE_URL = "https://api.fypsystem.me/" // Replace with your API base URL
 
     // Inside the LocationService class
     private fun sendLocation(latitude: Double, longitude: Double) {
