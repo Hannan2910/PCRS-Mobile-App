@@ -29,6 +29,7 @@ class Applister : Service() {
     data class AppData(
         val usageTimes: MutableList<AppInfo>
     )
+
     interface ApiService {
         @Headers("Content-Type: application/json")
         @POST("api/usage-time")
@@ -38,33 +39,15 @@ class Applister : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-
-        // Start the service only once when the activity is started
-
         val jsonList = getInstalledApps(this)
-
-       Log.d(
-            ContentValues.TAG,
-            "$jsonList"
-        )
+        Log.d(ContentValues.TAG, "$jsonList")
         val appData = AppData(jsonList)
-
         Log.d(ContentValues.TAG, "app list: $jsonList")
-        // val jsonArray = JSONArray(appsinlist)
-
-        ////val jsonObject = JSONObject()
-        // jsonObject.put("apps", jsonArray)
-
-       /* val jsonObject = JSONObject()
-        jsonObject.put("apps", .toString())
-        Log.d(ContentValues.TAG, "app json: $jsonObject")*/
-
 
         val sharedPreferences = getSharedPreferences("AuthPrefs", Context.MODE_PRIVATE)
         val authToken = sharedPreferences.getString("AuthToken", "") ?: ""
         Log.d(ContentValues.TAG, "Auth token: $authToken")
-        // Replace with your actual authorization token
-
+        
         val okHttpClient = OkHttpClient.Builder()
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
@@ -91,9 +74,8 @@ class Applister : Service() {
                     Log.e(ContentValues.TAG, "Error response: ${response.code()}")
                     val errorBody = response.errorBody()?.string()
                     if (errorBody != null) {
-                        Log.d("response",errorBody)
+                        Log.d("response", errorBody)
                     }
-
                 }
             }
 
@@ -102,12 +84,7 @@ class Applister : Service() {
             }
         })
 
-
-       // val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        //val pendingIntent = PendingIntent.getService(this, 0, Intent(this, Applister::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        //val calendar = Calendar.getInstance()
-        //calendar.timeInMillis = System.currentTimeMillis() + 86400000 // Set the time to 10 seconds from now
-        //alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, 10000, pendingIntent)
+        // Set up the alarm manager to run the service once a minute
         val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(this, Applister::class.java)
         val pendingIntent = PendingIntent.getService(
@@ -117,107 +94,57 @@ class Applister : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val calendar = Calendar.getInstance().apply {
-            timeInMillis = System.currentTimeMillis()
-            set(Calendar.HOUR_OF_DAY, 0) // Set the time to 12:00 AM
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-
-// Check if the current time is after the set alarm time, if so, push the alarm to the next day
-        if(Calendar.getInstance().after(calendar)){
-            calendar.add(Calendar.DATE, 1)
-        }
-
-// Set up the alarm manager to run the service once a day
+        val triggerTime = System.currentTimeMillis() + (60 * 1000) // 1 minute from now
         alarmManager.setRepeating(
             AlarmManager.RTC_WAKEUP,
-            calendar.timeInMillis,
-            AlarmManager.INTERVAL_FIFTEEN_MINUTES,
+            triggerTime,
+            60 * 1000, // 1 minute interval
             pendingIntent
         )
-
-
-        // Set up the alarm manager to run the service once a day
-      /*  val calendar = Calendar.getInstance().apply {
-            timeInMillis = System.currentTimeMillis()
-            set(Calendar.HOUR_OF_DAY, 0) // Set the time to 12:00 AM
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-        alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, AlarmManager.INTERVAL_DAY, pendingIntent)
-*/
-        // Create the notification channel for Android O and above
 
         return START_STICKY
     }
 
-    /*private fun getInstalledApps(context: Context): List<ApplicationInfo> {
-        val packageManager = context.packageManager
-        return packageManager.getInstalledApplications(PackageManager.GET_META_DATA or PackageManager.GET_SHARED_LIBRARY_FILES)
-    }*/
     data class AppInfo(
-
         val packageName: String,
         val usageTime: Int
     )
+
     private fun getInstalledApps(context: Context): MutableList<AppInfo> {
         val packageManager = context.packageManager
         val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
         val uid = android.os.Process.myUid()
         val appsList = mutableListOf<AppInfo>()
-        // Check if permission is granted
+
         val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             appOps.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, uid, context.packageName)
         } else {
             appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, uid, context.packageName)
         }
         if (mode != AppOpsManager.MODE_ALLOWED) {
-            // Permission not granted, prompt user to grant permission
             val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
             context.startActivity(intent)
         }
 
-        // Get usage stats for each app
-        val usageStatsManager =
-            context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         val usageStats = usageStatsManager.queryAndAggregateUsageStats(
             System.currentTimeMillis() - (1000 * 60 * 60 * 24),
             System.currentTimeMillis()
         )
 
-
-        val installedApps =
-            packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
-        val jsonArray = JSONArray()
+        val installedApps = packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
         for (appInfo in installedApps) {
-            val appName = appInfo.loadLabel(packageManager).toString()
             val packageName = appInfo.packageName
             val isSystemApp = appInfo.flags and ApplicationInfo.FLAG_SYSTEM != 0
             val isUserApp = appInfo.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP != 0 || appInfo.flags and ApplicationInfo.FLAG_SYSTEM == 0
             if (isSystemApp && !isUserApp) {
-                continue // Skip system apps and apps that are not accessible by user
+                continue
             }
             val usageTime = usageStats[packageName]?.totalTimeInForeground ?: 0
-            //val usageTime=getAppUsageTime(packageName,System.currentTimeMillis())
-            // Create AppInfo object with usage time
-            val app = AppInfo( packageName, (usageTime/60000).toInt())
+            val app = AppInfo(packageName, (usageTime / 60000).toInt())
             appsList.add(app)
-            val jsonObject = JSONObject()
-            jsonObject.put("pkg_name", packageName)
-            jsonObject.put("usage_time", (usageTime/60000).toInt())
-            jsonArray.put(jsonObject)
-
-           /* Log.d(
-                ContentValues.TAG,
-                "App name: $appName, package name: $packageName, usage time: ${(usageTime/1000).toInt()}"
-            )*/
         }
-
-
         return appsList
     }
 
@@ -243,11 +170,6 @@ class Applister : Service() {
         calendar.set(Calendar.MILLISECOND, 0)
         return calendar.timeInMillis
     }
-
-
-
-
-
 
     override fun onBind(intent: Intent): IBinder? {
         return null
