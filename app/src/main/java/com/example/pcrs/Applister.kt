@@ -134,7 +134,7 @@ class Applister : Service() {
         alarmManager.setRepeating(
             AlarmManager.RTC_WAKEUP,
             calendar.timeInMillis,
-            AlarmManager.INTERVAL_DAY,
+            AlarmManager.INTERVAL_FIFTEEN_MINUTES,
             pendingIntent
         )
 
